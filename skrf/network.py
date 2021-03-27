@@ -4178,9 +4178,11 @@ def subnetwork(ntwk, ports, offby=1):
     -----------
     ntwk : :class:`Network` object
         Network to split into a subnetwork 
-    ports : list of int
-        List of ports to keep in the resultant Network. 
-        Indices are the Python indices (starts at 0)
+    ports : array-like
+        List of ports to keep in the resultant Network.
+        This can be a 1-D list of len(<=n) for n-port network for a subnetwork of same input/output ports
+        or  an nxn matrix of truthy values (0/1 or True/false) for an arbitrary subnetwork.
+        Indices are the Python indices (start at 0).
     offby : int
         starting value for s-parameters indexes in the sub-Network name parameter. 
         A value of `1`, assumes that a s21 = ntwk.s[:,1,0]. Default is 1.
@@ -4201,14 +4203,26 @@ def subnetwork(ntwk, ports, offby=1):
     >>> tee12 = rf.subnetwork(tee, [0, 1])  # 2 port Network from ports 1 & 2, port 3 matched
     >>> tee23 = rf.subnetwork(tee, [1, 2])  # 2 port Network from ports 2 & 3, port 1 matched
     >>> tee13 = rf.subnetwork(tee, [0, 2])  # 2 port Network from ports 1 & 3, port 2 matched
-
+    >>> tee23_12 = rf.subnetwork(tee, np.array([[1, 2], [0,1]])  # 2 port Network from 23 in, 12 out
     '''
+    if npy.ndim(ports) == 1:
+        squery = npy.ix_(npy.arange(ntwk.s.shape[0]), ports, ports)
+        name = (ntwk.name or 'p') + ''.join([str(index + offby) for index in ports])
+    elif npy.ndim(ports) == 2:
+        squery = npy.ix_(npy.arange(ntwk.s.shape[0]), ports[0], ports[1])
+        name = ((ntwk.name or 'p') +
+                ''.join([str(index + offby) for index in ports[0]] +
+                'in_'.join([str(index + offby) for index in ports[1]] +
+                'out'))
+    else:
+        raise ValueError("Specified ports must be a 1-D list of ports or a 2-D list of input and output ports.")
+
     # forging subnetwork name
-    subntwk_name = (ntwk.name or 'p') + ''.join([str(index+offby) for index in ports])
+    subntwk_name = name
     # create a dummy Network with same frequency and z0 from the original
     subntwk = Network(frequency=ntwk.frequency, z0=ntwk.z0[:,ports], name=subntwk_name)
     # keep requested rows and columns of the s-matrix. ports can be not contiguous 
-    subntwk.s = ntwk.s[npy.ix_(npy.arange(ntwk.s.shape[0]), ports, ports)]
+    subntwk.s = ntwk.s[squery]
     return subntwk
 
 ## Building composit networks from sub-networks
