@@ -189,6 +189,11 @@ from .constants import S_DEFINITIONS, S_DEF_DEFAULT
 if TYPE_CHECKING:
     import pandas as pd
 
+try:
+    from numba import jit
+except ModuleNotFoundError:
+    def jit(f): return f
+
 #from matplotlib import cm
 #import matplotlib.pyplot as plt
 #import matplotlib.tri as tri
@@ -5232,6 +5237,7 @@ def s2a(s: npy.ndarray, z0: NumberLike = 50) -> npy.ndarray:
     return a
 
 
+@jit(nopython=True)
 def y2s(y: npy.ndarray, z0:NumberLike = 50, s_def: str = S_DEF_DEFAULT) -> Network:
     '''
     convert admittance parameters [#]_ to scattering parameters [#]_
